@@ -1,0 +1,13 @@
+{
+  "display_name": "Model Folders",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "dependencies": [],
+  "auto_update": true,
+  "version": "1.0.0",
+  "author": "Vibecoder9000",
+  "js": "index.js",
+  "css": "style.css",
+  "url": "https://github.com/Vibecoder9000/SillyTavern-ModelFolders"
+}
