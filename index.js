@@ -612,40 +612,17 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
             card.html(`
                 <div class="model-content">
                   <span class="model-name" ${modelObj && modelObj.value === currentSelectedValue ? 'title="Model already selected"' : ''} style="user-select: none;">${model}</span>
-                  <div class="model-actions">
-                    <button class="duplicate-btn" title="Add to folder">
-                      <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                    </button>
-                  </div>
                 </div>
               `);
 
             // Click selects
             card.on('click', (e) => {
-                if ($(e.target).closest('.duplicate-btn').length || card.hasClass('disabled')) return;
+                if (card.hasClass('disabled')) return;
                 selectModel(model);
             });
 
-            card.find('.duplicate-btn').on('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const wasHidden = globalDropdown.hasClass('hidden');
-
-                // Close others
-                globalDropdown.addClass('hidden');
-                $('.model-card').removeClass('active');
-
-                if (wasHidden) {
-                    showFolderDropdown(this, model);
-                    card.addClass('active');
-                }
-            });
-
             allGrid.append(card);
+
         });
 
         grid.append(allGrid);
