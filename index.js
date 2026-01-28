@@ -207,10 +207,15 @@ async function showModelsDialog(targetSelector) {
         </div>
     `);
 
+    // Global folder dropdown (will be appended to popup dialog after creation)
+    const globalDropdown = $('<div id="global-folder-dropdown" class="folder-dropdown hidden"></div>');
+
+
     foldersWrapper.append(addFolderBtn);
     container.append(foldersWrapper);
     container.append(modelsGrid);
     container.append(contextMenu);
+
 
     // Helper to hide context menu
     const hideContextMenu = () => {
@@ -225,7 +230,7 @@ async function showModelsDialog(targetSelector) {
     };
 
     const renderModelsFunc = () => {
-        renderModels(modelsGrid, models, modelsData, targetSelector, render, popup, hideContextMenu);
+        renderModels(modelsGrid, models, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown);
     };
 
     // Event handlers for context menu
@@ -247,10 +252,11 @@ async function showModelsDialog(targetSelector) {
             hideContextMenu();
         }
         if (!$(e.target).closest('.model-card').length) {
-            container.find('.folder-dropdown').addClass('hidden');
+            globalDropdown.addClass('hidden');
             container.find('.model-card').removeClass('active');
         }
     });
+
 
     addFolderBtn.on('click', () => {
         addFolder();
@@ -263,13 +269,24 @@ async function showModelsDialog(targetSelector) {
         okButton: 'Close',
     });
 
+    // Append dropdown to popup dialog to inherit its z-index stacking context
+    $(popup.dlg).append(globalDropdown);
+
     // Initialize render
     render();
 
+    const hideDropdown = () => {
+        globalDropdown.addClass('hidden');
+        $('.model-card').removeClass('active');
+    };
+
     const resizeHandler = () => {
         adjustFolderWidths(foldersWrapper, addFolderBtn);
+        hideDropdown();
     };
+
     window.addEventListener('resize', resizeHandler);
+    container.on('scroll', hideDropdown);
 
     // Cleanup on close
 
@@ -278,6 +295,7 @@ async function showModelsDialog(targetSelector) {
 
     window.removeEventListener('resize', resizeHandler);
     contextMenu.remove();
+    globalDropdown.remove();
 }
 
 function renderFolders(wrapper, button, render, renderModelsFunc, allAvailableModels) {
@@ -325,14 +343,15 @@ function renderFolders(wrapper, button, render, renderModelsFunc, allAvailableMo
             contextMenuFolder = folder;
             const menu = $('#folder-context-menu');
             const container = menu.closest('.selector-container');
-            const rect = container[0].getBoundingClientRect();
+            const containerRect = container[0].getBoundingClientRect();
 
             // Calculate position relative to container
             menu.css({
-                left: (e.clientX - rect.left) + 'px',
-                top: (e.clientY - rect.top) + 'px',
+                left: (e.clientX - containerRect.left) + 'px',
+                top: (e.clientY - containerRect.top) + 'px',
             }).removeClass('hidden');
         });
+
 
         button.before(folderItem);
     });
@@ -417,7 +436,7 @@ function adjustFolderWidths(wrapper, button) {
     });
 }
 
-function renderModels(grid, allAvailableModels, modelsData, targetSelector, render, popup, hideContextMenu) {
+function renderModels(grid, allAvailableModels, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown) {
     grid.empty();
     const folders = extension_settings.modelViewer.folders;
     const folderModels = extension_settings.modelViewer.folderModels;
@@ -433,6 +452,38 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
         }
     };
 
+    // Helper to show the global folder dropdown
+    const showFolderDropdown = (triggerEl, model, excludeFolder = null) => {
+        const rect = triggerEl.getBoundingClientRect();
+        const dlgRect = globalDropdown.parent()[0].getBoundingClientRect();
+        globalDropdown.empty();
+
+        const availableFolders = folders.filter(f => f !== excludeFolder);
+        if (availableFolders.length > 0) {
+            availableFolders.forEach(folder => {
+                const option = $(`<button class="folder-option">${folder}</button>`);
+                option.on('click', (e) => {
+                    e.stopPropagation();
+                    addModelToFolder(model, folder);
+                    globalDropdown.addClass('hidden');
+                    $('.model-card').removeClass('active');
+                    render();
+                });
+                globalDropdown.append(option);
+            });
+        } else {
+            globalDropdown.append('<div style="padding:8px; font-size:12px; color:var(--grey50)">No folders</div>');
+        }
+
+        globalDropdown.css({
+            top: (rect.bottom - dlgRect.top + 4) + 'px',
+            left: (rect.left - dlgRect.left) + 'px',
+        });
+        globalDropdown.removeClass('hidden');
+    };
+
+
+
     if (selectedFolder) {
         // Show Folder header
         grid.append(`<div class="unsorted-header">${selectedFolder}</div>`);
@@ -443,27 +494,52 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
         // Filter to only show models that are actually available in the current dropdown
         const availableInFolder = modelsToShow.filter(m => allAvailableModels.includes(m));
 
-        availableInFolder.forEach(model => {
+        availableInFolder.forEach((model, idx) => {
             const card = $('<div class="model-card"></div>');
             const modelObj = modelsData.find(m => m.text === model);
+
             if (modelObj && modelObj.value === currentSelectedValue) {
                 card.addClass('disabled');
             }
             card.html(`
                 <div class="model-content">
                   <span class="model-name">${model}</span>
-                  <button class="folder-btn">
-                    <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                  </button>
+                  <div class="model-actions">
+                    <button class="duplicate-btn" title="Duplicate to folder">
+                      <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </button>
+                    <button class="folder-btn" title="Remove from folder">
+                      <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
             `);
 
             card.on('click', (e) => {
                 // Ignore if clicked on button or if disabled
-                if ($(e.target).closest('.folder-btn').length || card.hasClass('disabled')) return;
+                if ($(e.target).closest('.folder-btn, .duplicate-btn').length || card.hasClass('disabled')) return;
                 selectModel(model);
+            });
+
+            card.find('.duplicate-btn').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const wasHidden = globalDropdown.hasClass('hidden');
+
+                // Close others
+                globalDropdown.addClass('hidden');
+                $('.model-card').removeClass('active');
+
+                if (wasHidden) {
+                    showFolderDropdown(this, model, selectedFolder);
+                    card.addClass('active');
+                }
             });
 
             card.find('.folder-btn').on('click', (e) => {
@@ -472,6 +548,7 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
                 removeModelFromFolder(model, selectedFolder);
                 render();
             });
+
 
             modelsGrid.append(card);
         });
@@ -491,51 +568,32 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
 
             sortedUnsorted.forEach((model, idx) => {
                 const card = $('<div class="model-card"></div>');
-                const dropdownId = `dropdown-unsorted-${idx}`;
+                const modelObj = modelsData.find(m => m.text === model);
+
                 card.html(`
                   <div class="model-content">
-                    <span class="model-name" style="user-select: none;">${model}</span>
+                    <span class="model-name" ${modelObj && modelObj.value === currentSelectedValue ? 'title="Model already selected"' : ''} style="user-select: none;">${model}</span>
                   </div>
-                  <div id="${dropdownId}" class="folder-dropdown hidden"></div>
                 `);
 
                 // Single click opens dropdown
-                card.on('click', (e) => {
-                    // Ignore clicks inside the dropdown
-                    if ($(e.target).closest('.folder-dropdown').length) return;
-
+                card.on('click', function(e) {
                     e.stopPropagation();
 
-                    const wasHidden = $(`#${dropdownId}`).hasClass('hidden');
+                    const wasHidden = globalDropdown.hasClass('hidden');
 
                     // Close others
-                    $('.folder-dropdown').addClass('hidden');
+                    globalDropdown.addClass('hidden');
                     $('.model-card').removeClass('active');
 
                     if (wasHidden) {
-                        $(`#${dropdownId}`).removeClass('hidden');
+                        showFolderDropdown(this, model);
                         card.addClass('active');
                     }
                 });
 
-                // Populate Dropdown
-                const dropdown = card.find(`#${dropdownId}`);
-                if (folders.length > 0) {
-                    folders.forEach(folder => {
-                        const option = $(`<button class="folder-option">${folder}</button>`);
-                        option.on('click', (e) => {
-                            e.stopPropagation(); // Stop bubbling to card
-                            addModelToFolder(model, folder);
-                            dropdown.addClass('hidden');
-                            render();
-                        });
-                        dropdown.append(option);
-                    });
-                } else {
-                    dropdown.append('<div style="padding:8px; font-size:12px; color:var(--grey50)">No folders</div>');
-                }
-
                 unsortedGrid.append(card);
+
             });
             grid.append(unsortedGrid);
         }
@@ -545,8 +603,7 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
         const allGrid = $('<div class="models-grid"></div>');
 
         const sortedAll = sortModelsAlphabetically([...allAvailableModels]);
-
-        sortedAll.forEach((model) => {
+        sortedAll.forEach((model, idx) => {
             const card = $('<div class="model-card"></div>');
             const modelObj = modelsData.find(m => m.text === model);
             if (modelObj && modelObj.value === currentSelectedValue) {
@@ -555,16 +612,42 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
             card.html(`
                 <div class="model-content">
                   <span class="model-name" ${modelObj && modelObj.value === currentSelectedValue ? 'title="Model already selected"' : ''} style="user-select: none;">${model}</span>
+                  <div class="model-actions">
+                    <button class="duplicate-btn" title="Add to folder">
+                      <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               `);
 
             // Click selects
-            card.on('click', () => {
-                if (card.hasClass('disabled')) return;
+            card.on('click', (e) => {
+                if ($(e.target).closest('.duplicate-btn').length || card.hasClass('disabled')) return;
                 selectModel(model);
             });
+
+            card.find('.duplicate-btn').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const wasHidden = globalDropdown.hasClass('hidden');
+
+                // Close others
+                globalDropdown.addClass('hidden');
+                $('.model-card').removeClass('active');
+
+                if (wasHidden) {
+                    showFolderDropdown(this, model);
+                    card.addClass('active');
+                }
+            });
+
             allGrid.append(card);
         });
+
         grid.append(allGrid);
     }
 }

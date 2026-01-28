@@ -165,6 +165,7 @@
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 0;
     width: 100%;
+    overflow: visible;
 }
 
 .model-card {
@@ -216,7 +217,8 @@
     text-align: left;
 }
 
-.folder-btn {
+.folder-btn,
+.duplicate-btn {
     background: none;
     border: none;
     cursor: pointer;
@@ -226,23 +228,26 @@
     opacity: 0.8;
 }
 
-.folder-btn:hover {
+.folder-btn:hover,
+.duplicate-btn:hover {
     opacity: 1;
     color: var(--white100);
 }
 
+.model-actions {
+    display: flex;
+    align-items: center;
+}
+
 .folder-dropdown {
-    position: absolute;
-    z-index: 999; /* Higher z-index just in case */
-    top: 100%;
-    margin-top: 4px;
-    left: 0;
-    right: 0;
+    position: fixed;
+    z-index: 1000000;
     background: var(--mf-bg);
     border: 1px solid var(--mf-border);
     max-height: 320px;
     overflow-y: auto;
     box-shadow: 0 4px 12px var(--SmartThemeShadowColor);
+    min-width: 150px;
 }
 
 .folder-option {
@@ -273,7 +278,7 @@
     background: var(--mf-bg);
     border: 1px solid var(--mf-border);
     box-shadow: 0 4px 12px var(--SmartThemeShadowColor);
-    z-index: 10000;
+    z-index: 1000000;
     min-width: 120px;
 }
 
