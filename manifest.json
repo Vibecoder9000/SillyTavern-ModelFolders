@@ -5,7 +5,7 @@
   "optional": [],
   "dependencies": [],
   "auto_update": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Vibecoder9000",
   "js": "index.js",
   "css": "style.css",
