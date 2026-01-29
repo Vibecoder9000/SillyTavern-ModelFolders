@@ -194,7 +194,7 @@ async function showModelsDialog(targetSelector) {
     const models = modelsData.map(m => m.text);
 
     // Create the container structure
-    const container = $('<div class="selector-container" style="border:none; max-width:100%;"></div>');
+    const container = $('<div class="selector-container" style="border:none;"></div>');
     const foldersWrapper = $('<div id="folders-wrapper" class="folders-wrapper"></div>');
     const addFolderBtn = $('<button id="add-folder-btn" class="add-folder-btn">+ Add Folder</button>');
     const modelsGrid = $('<div id="models-grid"></div>');
@@ -597,35 +597,6 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
             });
             grid.append(unsortedGrid);
         }
-
-        // All Section
-        grid.append('<div class="unsorted-header">all</div>');
-        const allGrid = $('<div class="models-grid"></div>');
-
-        const sortedAll = sortModelsAlphabetically([...allAvailableModels]);
-        sortedAll.forEach((model, idx) => {
-            const card = $('<div class="model-card"></div>');
-            const modelObj = modelsData.find(m => m.text === model);
-            if (modelObj && modelObj.value === currentSelectedValue) {
-                card.addClass('disabled');
-            }
-            card.html(`
-                <div class="model-content">
-                  <span class="model-name" ${modelObj && modelObj.value === currentSelectedValue ? 'title="Model already selected"' : ''} style="user-select: none;">${model}</span>
-                </div>
-              `);
-
-            // Click selects
-            card.on('click', (e) => {
-                if (card.hasClass('disabled')) return;
-                selectModel(model);
-            });
-
-            allGrid.append(card);
-
-        });
-
-        grid.append(allGrid);
     }
 }
 

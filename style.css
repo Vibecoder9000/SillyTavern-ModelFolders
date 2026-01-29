@@ -39,7 +39,7 @@
 .selector-container {
     border: 1px solid var(--mf-border);
     padding: 0;
-    max-width: 1200px;
+    max-width: 2000px;
     background: var(--mf-bg);
     color: var(--mf-text);
     position: relative;
@@ -162,7 +162,7 @@
 
 .models-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 0;
     width: 100%;
     overflow: visible;
@@ -247,7 +247,7 @@
     max-height: 320px;
     overflow-y: auto;
     box-shadow: 0 4px 12px var(--SmartThemeShadowColor);
-    min-width: 150px;
+    min-width: 200px;
 }
 
 .folder-option {
