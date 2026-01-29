@@ -60,6 +60,8 @@ const modelSelectors = [
 let observer = null;
 let selectedFolder = null;
 let contextMenuFolder = null;
+let groupAddMode = false;
+let groupSelectedModels = new Set();
 
 async function initModelViewer() {
     // Load settings
@@ -195,6 +197,14 @@ async function showModelsDialog(targetSelector) {
 
     // Create the container structure
     const container = $('<div class="selector-container" style="border:none;"></div>');
+
+    // Header with Group Add button
+    const header = $('<div class="mf-header"></div>');
+    const groupAddBtn = $('<button id="group-add-btn" class="group-add-btn">Group add</button>');
+    const groupAddHint = $('<span class="group-add-hint hidden">Click a folder to add selected models to that folder</span>');
+    header.append(groupAddBtn);
+    header.append(groupAddHint);
+
     const foldersWrapper = $('<div id="folders-wrapper" class="folders-wrapper"></div>');
     const addFolderBtn = $('<button id="add-folder-btn" class="add-folder-btn">+ Add Folder</button>');
     const modelsGrid = $('<div id="models-grid"></div>');
@@ -212,6 +222,7 @@ async function showModelsDialog(targetSelector) {
 
 
     foldersWrapper.append(addFolderBtn);
+    container.append(header);
     container.append(foldersWrapper);
     container.append(modelsGrid);
     container.append(contextMenu);
@@ -223,14 +234,29 @@ async function showModelsDialog(targetSelector) {
         contextMenuFolder = null;
     };
 
+    // Helper to update group add button state
+    const updateGroupAddUI = () => {
+        if (groupAddMode) {
+            groupAddBtn.text('Done');
+            groupAddBtn.addClass('active');
+            groupAddHint.removeClass('hidden');
+        } else {
+            groupAddBtn.text('Group add');
+            groupAddBtn.removeClass('active');
+            groupAddHint.addClass('hidden');
+            groupSelectedModels.clear();
+        }
+    };
+
     // Helper to render everything
     const render = () => {
-        renderFolders(foldersWrapper, addFolderBtn, render, renderModelsFunc, models);
+        renderFolders(foldersWrapper, addFolderBtn, render, renderModelsFunc, models, groupAddMode, groupSelectedModels, updateGroupAddUI);
         renderModelsFunc();
+        updateGroupAddUI();
     };
 
     const renderModelsFunc = () => {
-        renderModels(modelsGrid, models, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown);
+        renderModels(modelsGrid, models, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown, groupAddMode, groupSelectedModels);
     };
 
     // Event handlers for context menu
@@ -263,6 +289,12 @@ async function showModelsDialog(targetSelector) {
         render();
     });
 
+    groupAddBtn.on('click', () => {
+        groupAddMode = !groupAddMode;
+        updateGroupAddUI();
+        render();
+    });
+
     const popup = new Popup(container, POPUP_TYPE.TEXT, '', {
         wide: true,
         allowVerticalScrolling: true,
@@ -290,15 +322,17 @@ async function showModelsDialog(targetSelector) {
 
     // Cleanup on close
 
-
     await popup.show();
 
     window.removeEventListener('resize', resizeHandler);
     contextMenu.remove();
     globalDropdown.remove();
+    selectedFolder = null;
+    groupAddMode = false;
+    groupSelectedModels.clear();
 }
 
-function renderFolders(wrapper, button, render, renderModelsFunc, allAvailableModels) {
+function renderFolders(wrapper, button, render, renderModelsFunc, allAvailableModels, isGroupAddMode = false, groupSelected = new Set(), updateGroupAddUI = null) {
     wrapper.find('.folder-item').remove();
     const folders = extension_settings.modelViewer.folders;
     const folderModels = extension_settings.modelViewer.folderModels;
@@ -328,7 +362,18 @@ function renderFolders(wrapper, button, render, renderModelsFunc, allAvailableMo
 
         folderItem.on('click', (e) => {
             // Left click
-            if (e.button !== 0 || folderItem.hasClass('disabled')) return;
+            if (e.button !== 0) return;
+
+            // In group add mode, add all selected models to this folder
+            if (isGroupAddMode && groupSelected.size > 0) {
+                groupSelected.forEach(model => {
+                    addModelToFolder(model, folder);
+                });
+                render();
+                return;
+            }
+
+            if (folderItem.hasClass('disabled')) return;
 
             if (selectedFolder === folder) {
                 selectedFolder = null;
@@ -436,7 +481,7 @@ function adjustFolderWidths(wrapper, button) {
     });
 }
 
-function renderModels(grid, allAvailableModels, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown) {
+function renderModels(grid, allAvailableModels, modelsData, targetSelector, render, popup, hideContextMenu, globalDropdown, isGroupAddMode = false, groupSelected = new Set()) {
     grid.empty();
     const folders = extension_settings.modelViewer.folders;
     const folderModels = extension_settings.modelViewer.folderModels;
@@ -557,7 +602,14 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
         // Unsorted Section
         const modelsInFolders = new Set();
         Object.values(folderModels).forEach(list => list.forEach(m => modelsInFolders.add(m)));
-        const unsortedModels = allAvailableModels.filter(m => !modelsInFolders.has(m));
+
+        // In group add mode, keep group-selected models visible even if they're in folders
+        const unsortedModels = allAvailableModels.filter(m => {
+            if (isGroupAddMode && groupSelected.has(m)) {
+                return true; // Always show group-selected models in group mode
+            }
+            return !modelsInFolders.has(m);
+        });
 
         if (unsortedModels.length > 0) {
             // Sort unsorted
@@ -570,16 +622,34 @@ function renderModels(grid, allAvailableModels, modelsData, targetSelector, rend
                 const card = $('<div class="model-card"></div>');
                 const modelObj = modelsData.find(m => m.text === model);
 
+                // Apply group selected style
+                if (isGroupAddMode && groupSelected.has(model)) {
+                    card.addClass('group-selected');
+                }
+
                 card.html(`
                   <div class="model-content">
                     <span class="model-name" ${modelObj && modelObj.value === currentSelectedValue ? 'title="Model already selected"' : ''} style="user-select: none;">${model}</span>
                   </div>
                 `);
 
-                // Single click opens dropdown
+                // Handle click based on mode
                 card.on('click', function(e) {
                     e.stopPropagation();
 
+                    if (isGroupAddMode) {
+                        // Toggle selection
+                        if (groupSelected.has(model)) {
+                            groupSelected.delete(model);
+                            card.removeClass('group-selected');
+                        } else {
+                            groupSelected.add(model);
+                            card.addClass('group-selected');
+                        }
+                        return;
+                    }
+
+                    // Normal mode - show folder dropdown
                     const wasHidden = globalDropdown.hasClass('hidden');
 
                     // Close others

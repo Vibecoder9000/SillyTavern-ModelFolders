@@ -297,3 +297,55 @@
 .context-menu-item:hover {
     background: var(--mf-item-hover);
 }
+
+/* Group Add Mode Styles */
+.mf-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.group-add-btn {
+    background: transparent;
+    border: 1px solid var(--mf-border);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 12px;
+    line-height: 1;
+    box-sizing: border-box;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: var(--mf-text);
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.group-add-btn:hover {
+    background: var(--mf-item-hover);
+    border-color: var(--SmartThemeEmColor);
+}
+
+.group-add-btn.active {
+    background: var(--black30a);
+    color: #ff5555;
+    border-color: #ff5555;
+    box-shadow: 0 0 4px #ff5555;
+}
+
+.group-add-hint {
+    font-size: 13px;
+    color: var(--SmartThemeEmColor);
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.model-card.group-selected {
+    border-color: var(--SmartThemeEmColor);
+    background: var(--mf-item-hover);
+    box-shadow: 0 0 6px var(--SmartThemeEmColor);
+}
